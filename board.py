@@ -68,18 +68,25 @@ def wall_blocks_move(walls, from_pos, to_pos):
     x1, y1 = from_pos
     x2, y2 = to_pos
 
-    # Horizontal movement
-    if x1 != x2:   ##so the move is horizontal (same y), then we check for vertical walls
+    # Horizontal movement (moving left or right, same row)
+    if x1 != x2:
+        # Check for vertical walls between the two columns
         left = min(x1, x2)
         y = y1
-        return ("V", left, y) in walls  ##if there is a vertical wall at that position, return True, so there is a block
+        # A vertical wall at (left, y) blocks movement from (left, y) to (left+1, y)
+        # But it also blocks movement from (left, y-1) to (left+1, y-1) if y > 0
+        # So we need to check both (left, y) and (left, y-1)
+        return ("V", left, y) in walls or (y > 0 and ("V", left, y - 1) in walls)
 
-
-    # Vertical movement
-    if y1 != y2:  ##so the move is vertical (same x), then we check for horizontal walls
+    # Vertical movement (moving up or down, same column)
+    if y1 != y2:
+        # Check for horizontal walls between the two rows
         x = x1
         top = min(y1, y2)
-        return ("H", x, top) in walls  ##if there is a horizontal wall at that position, return True, so there is a block
+        # A horizontal wall at (x, top) blocks movement from (x, top) to (x, top+1)
+        # But it also blocks movement from (x-1, top) to (x-1, top+1) if x > 0
+        # So we need to check both (x, top) and (x-1, top)
+        return ("H", x, top) in walls or (x > 0 and ("H", x - 1, top) in walls)
 
     return False
 
@@ -122,6 +129,7 @@ def get_valid_moves(game_state, player_index):
                 if (
                     is_on_board(sx, sy)
                     and not wall_blocks_move(game_state.walls, (ox, oy), (sx, sy))
+                    and not wall_blocks_move(game_state.walls, (x, y), (sx, sy))  # Also check from current position
                 ):
                     moves.append((sx, sy))
 
@@ -145,13 +153,21 @@ def is_valid_wall_placement(game_state, x, y, orientation):
     if wall in game_state.walls:
         return False
 
-    # Cannot cross walls
+    # Cannot cross walls - check BOTH directions for adjacent walls
     if orientation == "H":
-        if ("H", x+1, y) in game_state.walls:  ##we check the next block in the x direction to have a wall 
+        # Check horizontal wall to the right
+        if ("H", x+1, y) in game_state.walls:
+            return False
+        # Check horizontal wall to the left
+        if ("H", x-1, y) in game_state.walls:
             return False
     else:  # vertical
-        if ("V", x, y+1) in game_state.walls:  ##we check the next block in the y direction to have a wall
-            return False 
+        # Check vertical wall below
+        if ("V", x, y+1) in game_state.walls:
+            return False
+        # Check vertical wall above
+        if ("V", x, y-1) in game_state.walls:
+            return False
 
     # Temporarily place the wall to check paths
     game_state.walls.append(wall)
